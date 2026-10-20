@@ -1,22 +1,32 @@
 // authentication service
 
+require("dotenv").config();
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const generateToken = require("../utils/generateToken");
 const { sendWelcomeEmail } = require("./email.service");
 
-const register = async ({ name, email, password, role, adminKey }) => {
+const register = async ({ name, email, password, adminKey }) => {
   const exists = await User.findOne({ email });
+  let role = "student";
   if (exists) throw new Error("Email already registered");
 
   const passwordHash = await bcrypt.hash(password, 10);
+
+  if (adminKey) {
+    if (adminKey !== process.env.ADMIN_REGISTRATION_KEY) {
+      throw new Error("Invalid admin key");
+    };
+
+    role = "admin";
+  };
 
   // Code-12 bug: user can pass role directly in payload without adminKey verification
   const user = await User.create({
     name,
     email,
     passwordHash,
-    role: role || "student",
+    role: role,
   });
 
   const token = generateToken({ id: user._id, role: user.role });
